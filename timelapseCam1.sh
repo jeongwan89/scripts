@@ -51,12 +51,12 @@ else
 fi
 
 # echo eerrtt | sudo -S mkdir -p "$SNAPSHOTS_DIR"/"$DAY"
-
+printf -v FORMATTEDNUM "%04" $FREADNUM
 echo eerrtt | sudo -S raspistill \
      --width 1280\
      --height 960\
      --quality 100\
-     --output "$SNAPSHOT_PATH/$FREADNUM.jpg"
+     --output "$SNAPSHOT_PATH/$FORMATTEDNUM.jpg"
 
 cd $SNAPSHOT_PATH
-echo eerrtt | sudo -S cp $SNAPSHOT_PATH/$FREADNUM.jpg $CURRENT_PATH
+echo eerrtt | sudo -S cp $SNAPSHOT_PATH/$FORMATTEDNUM.jpg $CURRENT_PATH
