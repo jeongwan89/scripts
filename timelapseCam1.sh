@@ -5,8 +5,9 @@ set -e
 DATE=$(date +"%Y-%m-%dT%H-%M-%S")
 DAY=$(date +"%Y-%m-%d")
 SNAPSHOTS_DIR=/mnt/timelapse/camera1
-SNAPSHOT_PATH="$SNAPSHOTS_DIR/$DAY/$DATE.jpg"
+SNAPSHOT_PATH="$SNAPSHOTS_DIR/$DAY"
 CURRENT_PATH="$SNAPSHOTS_DIR/current.jpg"
+# I loose the consistence between _DIR and _PATH
 
 if [ ! -d "$SNAPSHOTS_DIR" ] ; then
     # echo 디렉토리가 존재하지 않는다.
@@ -51,11 +52,11 @@ fi
 
 # echo eerrtt | sudo -S mkdir -p "$SNAPSHOTS_DIR"/"$DAY"
 
-# echo eerrtt | sudo -S raspistill \
-#     --width 1280\
-#     --height 960\
-#     --quality 100\
-#     --output "$SNAPSHOT_PATH"
+echo eerrtt | sudo -S raspistill \
+     --width 1280\
+     --height 960\
+     --quality 100\
+     --output "$SNAPSHOT_PATH/$FREADNUM.jpg"
 
-# cd $SNAPSHOTS_DIR
-# cp $SNAPSHOT_PATH $CURRENT_PATH
+cd $SNAPSHOT_PATH
+echo eerrtt | sudo -S cp $SNAPSHOT_PATH/$FREADNUM.jpg $CURRENT_PATH
