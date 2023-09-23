@@ -52,11 +52,17 @@ fi
 
 # echo eerrtt | sudo -S mkdir -p "$SNAPSHOTS_DIR"/"$DAY"
 printf -v FORMATTEDNUM "%04" $FREADNUM
+# resolution 960P
 echo eerrtt | sudo -S raspistill \
      --width 1280\
      --height 960\
      --quality 100\
      --output "$SNAPSHOT_PATH/$FORMATTEDNUM.jpg"
-
+# resolution 1080p
+# echo eerrtt | sudo -S raspistill \
+#      --width 1920\
+#      --height 1080\
+#      --quality 100\
+#      --output "$SNAPSHOT_PATH/$FORMATTEDNUM.jpg"
 cd $SNAPSHOT_PATH
 echo eerrtt | sudo -S cp $SNAPSHOT_PATH/$FORMATTEDNUM.jpg $CURRENT_PATH
