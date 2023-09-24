@@ -51,7 +51,7 @@ else
 fi
 
 # echo eerrtt | sudo -S mkdir -p "$SNAPSHOTS_DIR"/"$DAY"
-printf -v FORMATTEDNUM "%04" $FREADNUM
+printf -v FORMATTEDNUM "%04d" $FREADNUM
 # resolution 960P
 echo eerrtt | sudo -S raspistill \
      --width 1280\
