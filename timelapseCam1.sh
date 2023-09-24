@@ -20,7 +20,7 @@ if [ ! -e "$SNAPSHOTS_DIR/numbering.buff" ] ; then # 파일이 존재하지 않�
     # echo "numbering.buff 파일이 없다고 해서 들어왔습니다."
     echo eerrtt | sudo -S touch "$SNAPSHOTS_DIR/numbering.buff"
     echo eerrtt | sudo -S echo $DAY | sudo tee "$SNAPSHOTS_DIR/numbering.buff" > /dev/null  # 파일에 덮어 쓰기를 먼저하고
-    echo eerrtt | sudo -S echo 1 | sudo tee -a "$SNAPSHOTS_DIR/numbering.buff" > /dev/null  # 나중에 추가하여 기록한다.
+    echo eerrtt | sudo -S echo 1 | sudo tee -a "$SNAPSHOTS_DIR/numbering.buff" >> /dev/null  # 나중에 추가하여 기록한다.
     FREADDAY=$DAY
     FREADNUM=0
     # 그리고 $DAY 디렉토리를 만든다.
@@ -38,15 +38,15 @@ if [ $DAY == $FREADDAY ] ; then
     # 같은 날에 기록한다.
     FREADNUM=$(($FREADNUM + 1))
     echo eerrtt | sudo -S echo $DAY | sudo tee "$SNAPSHOTS_DIR/numbering.buff" > /dev/null  # 파일에 덮어 쓰기를 먼저하고
-    echo eerrtt | sudo -S echo $FREADNUM | sudo tee -a "$SNAPSHOTS_DIR/numbering.buff" > /dev/null  # 나중에 추가하여 기록한다.
+    echo eerrtt | sudo -S echo $FREADNUM | sudo tee -a "$SNAPSHOTS_DIR/numbering.buff" >> /dev/null  # 나중에 추가하여 기록한다.
 else
-    # 다른 날이라면.
+    # 다른 날이라면. (일반적인 경우 하루 넘긴 날이라면)
     # 1. 새로운 디렉토리를 만들고
     echo eerrtt | sudo -S mkdir -p "$SNAPSHOTS_DIR"/"$DAY"
     # 2. numbering.buff에 날짜를 새로 쓰고
     echo eerrtt | sudo -S echo $DAY | sudo tee "$SNAPSHOTS_DIR/numbering.buff" > /dev/null
     # 3. 기억할 숫자로는 1을 대입한다.
-    echo eerrtt | sudo -S echo 1 | sudo tee -a "$SNAPSHOTS_DIR/numbering.buff" > /dev/null  # 나중에 추가하여 기록한다.
+    echo eerrtt | sudo -S echo 1 | sudo tee -a "$SNAPSHOTS_DIR/numbering.buff" >> /dev/null  # 나중에 추가하여 기록한다.
     FREADNUM=1
 fi
 
