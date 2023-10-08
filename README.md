@@ -1,4 +1,6 @@
 # ubuntu
-Linux bash scripts dev
+
+Linux bash scripts development
 ubuntu raspberry pi code drill
-# edited from Home ubuntu
+
+## edited from Home ubuntu
