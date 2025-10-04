@@ -181,66 +181,79 @@ function onEdit(e) {
       var currentRow = range.getRow();
       var triggerValue = range.getValue(); // L열에 입력된 값
       var stockName = sheet.getRange(currentRow, STOCK_COLUMN).getValue(); // C열의 종목명
-      
-      console.log("L열에 값 입력됨:", triggerValue, "종목:", stockName);
-      
-      if (triggerValue && triggerValue !== "" && stockName && stockName !== "") {
+      var uniqueId = sheet.getRange(currentRow, ID_COLUMN).getValue(); // A열의 고유번호
+
+      console.log("L열에 값 입력됨:", triggerValue, "종목:", stockName, "고유번호:", uniqueId);
+
+      if (triggerValue === "입력" && stockName && stockName !== "") {
         // 이미 고유번호가 있는지 확인 (중복 실행 방지)
-        var existingId = sheet.getRange(currentRow, ID_COLUMN).getValue();
-        if (existingId && existingId !== "") {
-          console.log("이미 처리된 행입니다. 고유번호:", existingId);
+        if (uniqueId && uniqueId !== "") {
+          console.log("이미 처리된 행입니다. 고유번호:", uniqueId);
           return;
         }
-        
+
         console.log("처리 시작 - 종목:", stockName);
-        
+
         // 1. 고유번호 자동생성 (Apps Script의 Lock 서비스 사용으로 동시 실행 방지)
         var lock = LockService.getScriptLock();
         try {
-          lock.waitLock(1000); // 5초 대기  5초 대기를 1초대기로 고쳤다. (25/9/28)
+          lock.waitLock(1000);
           generateUniqueId(sheet, currentRow, ID_COLUMN);
-          
-          // 잠시 대기해서 고유번호가 완전히 생성되도록 함
           Utilities.sleep(100);
-          
         } catch (e) {
           console.log("Lock 획득 실패:", e.toString());
           return;
         } finally {
           lock.releaseLock();
         }
-        
+
         // 2. 전체 행 데이터 가져오기 (고유번호 생성 후)
-        console.log("행 데이터 가져오기 시작 - 행:", currentRow);
-        console.log("전체 열 수:", sheet.getLastColumn());
-        
         var rowData = sheet.getRange(currentRow, 1, 1, sheet.getLastColumn()).getValues()[0];
-        console.log("가져온 행 데이터:", rowData);
-        console.log("데이터 길이:", rowData.length);
-        
-        // 데이터가 비어있는지 확인
-        var hasData = false;
-        for (var i = 0; i < rowData.length; i++) {
-          if (rowData[i] && rowData[i] !== "") {
-            hasData = true;
-            break;
-          }
-        }
-        
+        var hasData = rowData.some(function(val) { return val && val !== ""; });
         if (!hasData) {
           console.log("경고: 행에 데이터가 없습니다!");
           return;
         }
-        
+
         // 3. 종목별 시트로 데이터 복사
         copyToStockSheet(spreadsheet, stockName, rowData);
-        
+
         // 처리 완료 후 원래 셀로 포커스 돌려놓기
         returnToOriginalCell(spreadsheet, "매매기록", currentRow, DATA_COLUMN, {
-          focusType: "trigger" // "trigger": 원래 셀, "next": 다음 셀, "id": 고유번호 셀
+          focusType: "trigger"
         });
-        
         console.log("처리 완료 - 종목:", stockName);
+      } else if (triggerValue === "삭제" && stockName && stockName !== "" && uniqueId && uniqueId !== "") {
+        // L열에 '삭제'가 입력된 경우: 분개장 시트에서 고유번호로 행 삭제
+        console.log("삭제 요청 - 종목:", stockName, "고유번호:", uniqueId);
+        var stockSheet = spreadsheet.getSheetByName(stockName);
+        if (!stockSheet) {
+          console.log("종목 시트를 찾을 수 없습니다:", stockName);
+        } else {
+          var lastRow = stockSheet.getLastRow();
+          var idCol = 1; // 종목 시트의 고유번호는 A열(1)
+          var foundRow = null;
+          for (var r = 2; r <= lastRow; r++) {
+            var idVal = stockSheet.getRange(r, idCol).getValue();
+            if (idVal === uniqueId) {
+              foundRow = r;
+              break;
+            }
+          }
+          if (foundRow) {
+            stockSheet.deleteRow(foundRow);
+            console.log("분개장 시트에서 행 삭제 완료:", foundRow);
+          } else {
+            console.log("분개장 시트에서 고유번호를 찾지 못함:", uniqueId);
+          }
+        }
+        // 원본 시트의 고유번호와 L열 값도 삭제. 통체로 삭제되기에 셀 단위로 지우는 것은 의미없음
+        // sheet.getRange(currentRow, ID_COLUMN).setValue("");
+        // sheet.getRange(currentRow, DATA_COLUMN).setValue("");
+        // console.log("원본 시트 고유번호 및 L열 값 삭제 완료");
+        // 통채로 삭제
+        sheet.deleteRow(currentRow);
+        console.log("원본 시트에서 행 삭제 완료:", currentRow);
       } else {
         // L열 데이터가 삭제되면 고유번호도 삭제 (선택사항)
         if (!triggerValue || triggerValue === "") {
@@ -304,7 +317,7 @@ function copyToStockSheet(spreadsheet, stockName, rowData) {
       
       // 헤더 추가
       var headers = ["거래번호", "거래날짜", "종목", "평균가", "매수량", "매수단가", 
-                     "매도량", "매도단가", "잔고량", "비고", "실현손익"];
+                     "매도량", "매도단가", "잔고량", "비고", "실현손익", "명령"];
       stockSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
       
       // 헤더 스타일링
@@ -341,12 +354,31 @@ function copyToStockSheet(spreadsheet, stockName, rowData) {
     // 데이터 추가
     var targetRange = stockSheet.getRange(lastRow + 1, 1, 1, rowData.length);
     console.log("목표 범위:", targetRange.getA1Notation());
-    
+
     targetRange.setValues([rowData]);
-    
-    console.log("데이터 추가 성공 - " + stockSheetName + " 시트, 행:" + (lastRow + 1));
-    console.log("추가된 데이터 확인:", stockSheet.getRange(lastRow + 1, 1, 1, rowData.length).getValues()[0]);
-    
+
+    // D열(4번째 열)에 수식 추가
+    var newRow = lastRow + 1;
+    var prevRow = newRow - 1;
+    if (newRow > 2) { // 2행은 헤더, 3행부터 수식 적용
+      var formulaD = `=IF(E${newRow},(D${prevRow}*I${prevRow}+E${newRow}*F${newRow})/I${newRow},D${prevRow})`;
+      stockSheet.getRange(newRow, 4).setFormula(formulaD);
+      console.log("D열 수식 추가:", formulaD);
+
+      // K열(11번째 열)에 수식 추가
+      var formulaK = `=if(G${newRow},-I${prevRow}*D${newRow}+G${newRow}*H${newRow}-E${newRow}*F${newRow},0)`;
+      stockSheet.getRange(newRow, 11).setFormula(formulaK);
+      console.log("K열 수식 추가:", formulaK);
+
+     // I열(9번째 열)에 수식 추가
+      var formulaI = `=I${prevRow}-G${newRow}+E${newRow}`;
+      stockSheet.getRange(newRow, 9).setFormula(formulaI);
+      console.log("I열 수식 추가:", formulaI);
+    }
+
+    console.log("데이터 추가 성공 - " + stockSheetName + " 시트, 행:" + newRow);
+    console.log("추가된 데이터 확인:", stockSheet.getRange(newRow, 1, 1, rowData.length).getValues()[0]);
+
     // 새 시트가 생성되었다면 원래 시트의 원래 셀로 돌아가기
     if (isNewSheet) {
       try {
@@ -517,3 +549,68 @@ function showAppInfo() {
     
   UIManager.showSuccess(infoMessage);
 }
+
+function getKoreanStock(code) {
+  var url = "https://finance.naver.com/item/main.nhn?code=" + code;
+  var response = UrlFetchApp.fetch(url);
+  var html = response.getContentText();
+  
+  // HTML 파싱하여 주가 추출
+  var regex = /<span class="blind">현재가<\/span>\s*<strong[^>]*>([^<]*)<\/strong>/;
+  var match = html.match(regex);
+  
+  if (match) {
+    return match[1].replace(/,/g, '');
+  }
+  return "데이터 없음";
+}
+
+function test_getKoreanStock() {
+  var testCode = "0047A0"; // 삼성전자 예시
+  var result = getKoreanStock(testCode);
+  Logger.log("테스트 결과: " + result);
+}
+
+/**
+ * 종목 코드로 네이버 금융에서 현재가를 가져오는 함수 (숫자 반환)
+ * @param {string} code 종목 코드 (예: "0047A0", "005930")
+ * @return {number} 현재가 (숫자)
+ */
+function KOREA_STOCK(code) {
+  try {
+    var url = "https://finance.naver.com/item/main.nhn?code=" + code;
+    var options = {
+      "muteHttpExceptions": true,
+      "headers": {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+      }
+    };
+    var response = UrlFetchApp.fetch(url, options);
+    var html = response.getContentText();
+
+    // 패턴 A: <span class="blind">현재가</span> … <strong>13,500</strong>
+    var patternA = /<span\s+class="blind">현재가<\/span>\s*<\/?[^>]*>\s*<strong[^>]*>([\d,]+)<\/strong>/i;
+    var matchA = html.match(patternA);
+    if (matchA && matchA[1]) {
+      return parseFloat(matchA[1].replace(/,/g, ""));
+    }
+
+    // 패턴 B: <p class="no_today"> … <span class="blind">13,500</span>
+    var patternB = /<p\s+class="no_today">[\s\S]*?<span\s+class="blind">([\d,]+)<\/span>/i;
+    var matchB = html.match(patternB);
+    if (matchB && matchB[1]) {
+      return parseFloat(matchB[1].replace(/,/g, ""));
+    }
+
+    return NaN; // 파싱 실패 시 숫자형 NaN 반환
+  } catch (e) {
+    return NaN; // 오류 시에도 NaN 반환
+  }
+}
+
+function refreshAllStocks() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var cell = sheet.getRange("Z1");  // 잘 안 쓰는 셀
+  cell.setValue(new Date());        // 값 갱신 → 시트 재계산 유도
+}
+
